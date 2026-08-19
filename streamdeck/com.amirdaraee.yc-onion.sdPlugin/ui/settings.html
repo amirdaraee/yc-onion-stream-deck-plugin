@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 13px -apple-system, sans-serif; color: #ddd; margin: 12px; }
+    .row { display: none; grid-template-columns: 92px 1fr; gap: 8px; align-items: center; margin: 10px 0; }
+    label { text-align: right; color: #bbb; }
+    input, select, button {
+      width: 100%;
+      box-sizing: border-box;
+      background: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 5px;
+    }
+    button {
+      width: auto;
+      min-width: 82px;
+      cursor: pointer;
+    }
+    .device-picker { display: flex; gap: 8px; align-items: center; }
+    .device-picker select { flex: 1; min-width: 0; }
+    .hint { color: #999; line-height: 1.4; margin-top: 16px; }
+    .warning { color: #f2bd55; }
+    #save-status { color: #7bd88f; text-align: right; min-height: 18px; }
+    #device-note { color: #999; margin-top: 4px; font-size: 12px; line-height: 1.35; }
+  </style>
+</head>
+<body>
+  <div class="row power"><label>Operation</label><select data-setting="operation"><option value="toggle">Toggle</option><option value="on">On</option><option value="off">Off</option></select></div>
+  <div class="row brightness cct color effect"><label>Brightness</label><input data-setting="brightness" type="number" min="0" max="100" value="60"></div>
+  <div class="row cct"><label>Temperature</label><input data-setting="kelvin" type="number" min="3200" max="6200" step="100" value="4500"></div>
+  <div class="row color"><label>Hue</label><input data-setting="hue" type="number" min="0" max="360" value="0"></div>
+  <div class="row color"><label>Saturation</label><input data-setting="saturation" type="number" min="0" max="100" value="100"></div>
+  <div class="row effect"><label>Family</label><select data-setting="family"><option value="rgb">RGB</option><option value="cct">White/CCT</option><option value="police">Police</option></select></div>
+  <div class="row effect"><label>Effect ID</label><input data-setting="effectId" type="number" min="1" max="6" value="1"></div>
+  <div class="row effect"><label>Speed</label><input data-setting="speed" type="number" min="0" max="100" value="50"></div>
+  <div class="row power brightness cct color effect raw"><label>Device</label>
+    <div>
+      <div class="device-picker">
+        <select id="device-select" data-setting="device"></select>
+        <button id="refresh-devices" type="button">Refresh</button>
+      </div>
+      <div id="device-note">Auto uses the remembered device on macOS or the strongest nearby match on Windows.</div>
+    </div>
+  </div>
+  <div class="row raw"><label>Service</label><input data-setting="service" type="text" value="FFE0"></div>
+  <div class="row raw"><label>Write UUID</label><input data-setting="write" type="text" value="FFE1"></div>
+  <div class="row raw"><label>Packet</label><input data-setting="packet" type="text" placeholder="Hex bytes, e.g. AA F3 01 ... FF"></div>
+  <p class="hint">The light must be physically powered on. Color: hue 0=red, 60=yellow, 120=green, 180=cyan, 240=blue, 300=magenta.</p>
+  <p class="hint warning raw" style="display:none">Advanced commands are protocol-recovered, not hardware-tested. A motion packet can move a slider or gimbal. Set the exact device name/UUID and test Stop before movement.</p>
+  <p id="save-status"></p>
+  <script>
+    let websocket;
+    let context;
+    let action;
+    let settings = {};
+    let availableDevices = [];
+    let refreshQueued = false;
+
+    function persistSettings() {
+      websocket.send(JSON.stringify({ event: 'setSettings', action, context, payload: settings }));
+      const status = document.getElementById('save-status');
+      status.textContent = 'Saved';
+      setTimeout(() => {
+        if (status.textContent === 'Saved') status.textContent = '';
+      }, 1200);
+    }
+
+    function deviceLabel(device) {
+      const suffix = device.serial ? device.serial : device.id.slice(0, 8);
+      return `${device.name} — ${suffix}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function renderDeviceOptions() {
+      const select = document.getElementById('device-select');
+      if (!select) return;
+      const currentValue = settings.device || '';
+      const currentLabel = settings.deviceLabel || currentValue || 'Auto';
+      const options = [
+        { value: '', label: 'Auto (last used)' }
+      ];
+      for (const device of availableDevices) {
+        options.push({ value: device.id, label: deviceLabel(device) });
+      }
+      if (currentValue && !options.some(option => option.value === currentValue)) {
+        options.splice(1, 0, { value: currentValue, label: `Current target — ${currentLabel}` });
+      }
+      select.innerHTML = options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+      select.value = currentValue;
+    }
+
+    function requestDevices() {
+      if (!websocket || websocket.readyState !== WebSocket.OPEN) return;
+      websocket.send(JSON.stringify({ event: 'sendToPlugin', payload: { type: 'listDevices' } }));
+    }
+
+    function applyIncomingDevices(payload) {
+      availableDevices = Array.isArray(payload.devices) ? payload.devices : [];
+      renderDeviceOptions();
+      const note = document.getElementById('device-note');
+      if (!note) return;
+      if (payload.error) {
+        note.textContent = `Device scan failed: ${payload.error}`;
+      } else if (availableDevices.length === 0) {
+        note.textContent = 'No YC Onion Bluetooth devices were discovered.';
+      } else {
+        note.textContent = `Found ${availableDevices.length} YC Onion device${availableDevices.length === 1 ? '' : 's'}.`;
+      }
+    }
+
+    window.connectElgatoStreamDeckSocket = (port, uuid, event, info, actionInfoJSON) => {
+      context = uuid;
+      const actionInfo = JSON.parse(actionInfoJSON);
+      action = actionInfo.action;
+      settings = actionInfo.payload.settings || {};
+      const kind = actionInfo.action.split('.').pop();
+      document.querySelectorAll('.row.' + kind).forEach(el => el.style.display = 'grid');
+      document.querySelectorAll('p.' + kind).forEach(el => el.style.display = 'block');
+      document.querySelectorAll('[data-setting]').forEach(input => {
+        const key = input.dataset.setting;
+        if (settings[key] !== undefined) input.value = settings[key];
+      });
+      renderDeviceOptions();
+      websocket = new WebSocket('ws://127.0.0.1:' + port);
+      websocket.onopen = () => {
+        websocket.send(JSON.stringify({ event, uuid }));
+        requestDevices();
+      };
+      websocket.onmessage = ev => {
+        const message = JSON.parse(ev.data);
+        if (message.event === 'sendToPropertyInspector' && message.payload?.type === 'devices') {
+          applyIncomingDevices(message.payload);
+        }
+      };
+      document.querySelectorAll('[data-setting]').forEach(input => {
+        const key = input.dataset.setting;
+        input.addEventListener('change', () => {
+          if (input.id === 'device-select') {
+            const selected = availableDevices.find(device => device.id === input.value);
+            if (!selected) {
+              settings.device = '';
+              settings.serial = '';
+              settings.deviceLabel = '';
+              persistSettings();
+              return;
+            }
+            settings.device = selected.id;
+            settings.serial = selected.serial || '';
+            settings.deviceLabel = selected.name;
+            persistSettings();
+            return;
+          }
+          settings[key] = input.type === 'number' ? Number(input.value) : input.value;
+          persistSettings();
+        });
+      });
+      document.getElementById('refresh-devices').addEventListener('click', () => {
+        if (refreshQueued) return;
+        refreshQueued = true;
+        requestDevices();
+        setTimeout(() => { refreshQueued = false; }, 500);
+      });
+    };
+  </script>
+</body>
+</html>

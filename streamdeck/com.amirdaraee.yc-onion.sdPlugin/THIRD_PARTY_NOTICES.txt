@@ -1,0 +1,5 @@
+The compiled plugin includes MIT-licensed software from Corsair Memory Inc.,
+Colin McDonnell, Einar Otto Stangvik, Arnout Kazemier and contributors, and
+Luigi Pinca and contributors. Complete notices are available at:
+
+https://github.com/amirdaraee/yc-onion-stream-deck-plugin/blob/main/THIRD_PARTY_NOTICES.md

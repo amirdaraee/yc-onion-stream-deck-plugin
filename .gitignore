@@ -1,0 +1,22 @@
+.build/
+.DS_Store
+
+# Node / Stream Deck build output
+streamdeck/node_modules/
+streamdeck/dist/
+streamdeck/.icon-work/
+streamdeck/com.amirdaraee.yc-onion.sdPlugin/bin/
+streamdeck/com.amirdaraee.yc-onion.sdPlugin/logs/
+streamdeck/com.amirdaraee.yc-onion.sdPlugin/controllers/mac/
+
+# Editors and local tooling
+.idea/
+.vscode/
+*.swp
+*.xcuserstate
+
+# Logs and environment files
+*.log
+.env
+.env.*
+!.env.example

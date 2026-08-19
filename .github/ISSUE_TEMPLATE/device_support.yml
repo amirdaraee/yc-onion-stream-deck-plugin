@@ -1,0 +1,41 @@
+name: Device support report
+description: Request support or report verified behavior for another YC Onion product.
+title: "[Device]: "
+labels: [device-support]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Product model
+    validations:
+      required: true
+  - type: input
+    id: advertised-name
+    attributes:
+      label: Advertised Bluetooth name
+      description: Do not include the Bluetooth address or serial value.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Test platform
+      options: [macOS, Windows]
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Tested behavior
+      description: State which commands succeeded or failed and whether physical hardware was used.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed device addresses, serial values, and personal information.
+          required: true
+        - label: I tested a Stop command before any movement command.
+          required: false

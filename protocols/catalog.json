@@ -1,0 +1,89 @@
+{
+  "source": {
+    "package": "com.real0168.yconion",
+    "version": "1.5.4",
+    "apkSha256": "aba7799bf2bf93227232377499eb69bef881a283eccce423f0e0b80745ec8e62"
+  },
+  "adapters": [
+    {
+      "id": "yc-light",
+      "family": "light",
+      "services": ["FFE0", "1828"],
+      "write": ["FFE1", "2ADD"],
+      "notify": ["FFE2", "2ADE"],
+      "models": ["ET_MINI", "ENERGYTUBE PRO", "ENERGYTUBE P60", "LOLLY", "Waffle", "BUDDING V2", "ENERGY TUBE", "ENERGY TUBE SE", "Toast Light"]
+    },
+    {
+      "id": "pudding-light",
+      "family": "light",
+      "services": ["AE00"],
+      "write": ["AE02"],
+      "notify": ["AE01"],
+      "models": ["PIZZC", "YConion", "PUDDING LED Light"]
+    },
+    {
+      "id": "yc-framed-motion",
+      "family": "motion",
+      "services": ["FFE0"],
+      "write": ["FFE1"],
+      "notify": ["FFE2"],
+      "models": ["HD-V1", "HDII", "HG-ZYB", "QKL-PRO", "QKL-2D", "HDSE", "CHSE-V1", "RG_SE", "CHEESE", "YDC_B"]
+    },
+    {
+      "id": "legacy-gaia-slider",
+      "family": "slider",
+      "services": ["FFE0"],
+      "write": ["FFE1"],
+      "notify": ["FFE1", "FFE2"],
+      "models": ["JDY", "CH-V1", "CHPRO-V1", "CHMK-V1"]
+    },
+    {
+      "id": "dji-ronin",
+      "family": "gimbal",
+      "services": ["FFE0"],
+      "write": ["FFE1"],
+      "notify": ["FFE1"],
+      "models": ["DJI-V1", "YC-RS2"]
+    },
+    {
+      "id": "zhiyun",
+      "family": "gimbal",
+      "services": ["FEE9"],
+      "write": ["D44BC439-ABFD-45A2-B575-925416129600"],
+      "notify": ["D44BC439-ABFD-45A2-B575-925416129601"],
+      "models": ["WEEBILL 2", "WEEBILL s", "WEEBILL LAB", "CRANE 3 LAB", "CRANE 3-S", "CRANE 2S", "Crane2", "CRANE-M2", "CRANE-M3", "SMOOTH-Q3", "Smooth4", "SMOOTH-X", "SMOOTH Q2", "SMOOTH 5"]
+    },
+    {
+      "id": "feiyu",
+      "family": "gimbal",
+      "services": ["FFFF"],
+      "write": ["FF01"],
+      "notify": ["FF02"],
+      "models": ["FY_SCORP_49"]
+    },
+    {
+      "id": "hohem",
+      "family": "gimbal",
+      "services": ["FFE0"],
+      "write": ["FFE1"],
+      "notify": ["FFE2"],
+      "models": ["SV2", "iSX", "SX2"]
+    },
+    {
+      "id": "lasagna",
+      "family": "teleprompter",
+      "services": ["FFF0", "180F"],
+      "write": ["FFF1"],
+      "notify": ["FFF2", "2A19"],
+      "models": ["M2", "TL2.0"]
+    },
+    {
+      "id": "yc-head",
+      "family": "head",
+      "services": ["FFE0"],
+      "write": ["FFE1"],
+      "notify": ["FFE2"],
+      "models": ["Yuntai"]
+    }
+  ]
+}

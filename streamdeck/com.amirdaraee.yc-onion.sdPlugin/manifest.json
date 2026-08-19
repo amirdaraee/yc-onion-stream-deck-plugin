@@ -1,0 +1,130 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "com.amirdaraee.yc-onion",
+  "Name": "YC Onion Control",
+  "Version": "1.3.0.0",
+  "Author": "amirdaraee",
+  "Description": "Control YC Onion lights, sliders, gimbals, heads, and accessories over Bluetooth.",
+  "Category": "YC Onion Control",
+  "CategoryIcon": "imgs/category-icon",
+  "Icon": "imgs/plugin-icon",
+  "URL": "https://github.com/amirdaraee/yc-onion-stream-deck-plugin",
+  "SupportURL": "https://github.com/amirdaraee/yc-onion-stream-deck-plugin/issues",
+  "CodePath": "bin/plugin.js",
+  "PropertyInspectorPath": "ui/settings.html",
+  "SDKVersion": 3,
+  "Software": {
+    "MinimumVersion": "6.9"
+  },
+  "Nodejs": {
+    "Version": "20"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Actions": [
+    {
+      "UUID": "com.amirdaraee.yc-onion.power",
+      "Name": "Power",
+      "Tooltip": "Toggle, turn on, or turn off the Energy Tube.",
+      "Icon": "imgs/action-icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/key-power",
+          "TitleAlignment": "bottom",
+          "FontSize": 14
+        }
+      ]
+    },
+    {
+      "UUID": "com.amirdaraee.yc-onion.brightness",
+      "Name": "Brightness",
+      "Tooltip": "Set Energy Tube brightness.",
+      "Icon": "imgs/action-icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/key-brightness",
+          "TitleAlignment": "bottom",
+          "FontSize": 14
+        }
+      ]
+    },
+    {
+      "UUID": "com.amirdaraee.yc-onion.cct",
+      "Name": "White / CCT",
+      "Tooltip": "Switch to white mode and set color temperature.",
+      "Icon": "imgs/action-icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/key-cct",
+          "TitleAlignment": "bottom",
+          "FontSize": 13
+        }
+      ]
+    },
+    {
+      "UUID": "com.amirdaraee.yc-onion.color",
+      "Name": "HSI Color",
+      "Tooltip": "Switch to HSI mode and set hue and saturation.",
+      "Icon": "imgs/action-icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/key-color",
+          "TitleAlignment": "bottom",
+          "FontSize": 13
+        }
+      ]
+    },
+    {
+      "UUID": "com.amirdaraee.yc-onion.effect",
+      "Name": "Effect",
+      "Tooltip": "Run a built-in Energy Tube effect.",
+      "Icon": "imgs/action-icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/key-effect",
+          "TitleAlignment": "bottom",
+          "FontSize": 13
+        }
+      ]
+    },
+    {
+      "UUID": "com.amirdaraee.yc-onion.raw",
+      "Name": "Advanced BLE Command",
+      "Tooltip": "Send an extracted Android-app BLE packet to any supported YC Onion product family.",
+      "Icon": "imgs/action-icon",
+      "Controllers": [
+        "Keypad"
+      ],
+      "States": [
+        {
+          "Image": "imgs/plugin-icon",
+          "TitleAlignment": "bottom",
+          "FontSize": 12
+        }
+      ]
+    }
+  ]
+}

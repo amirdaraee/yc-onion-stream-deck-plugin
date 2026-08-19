@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.zip binary
+*.streamDeckPlugin binary
+streamdeck/com.amirdaraee.yc-onion.sdPlugin/bin/* linguist-generated=true
