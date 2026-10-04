@@ -176,11 +176,15 @@ abstract class ControllerAction extends SingletonAction<Settings> {
   }
 
   override async onWillAppear(ev: WillAppearEvent<Settings>): Promise<void> {
-    await ev.action.setTitle(this.title(ev.payload.settings));
+    if (ev.action.isKey()) {
+      await ev.action.setTitle(this.title(ev.payload.settings));
+    }
   }
 
   override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<Settings>): Promise<void> {
-    await ev.action.setTitle(this.title(ev.payload.settings));
+    if (ev.action.isKey()) {
+      await ev.action.setTitle(this.title(ev.payload.settings));
+    }
   }
 
   override async onSendToPlugin(ev: SendToPluginEvent<{ type?: string }, Settings>): Promise<void> {
@@ -249,6 +253,9 @@ class RawBLEAction extends ControllerAction {
   }
   title(s: Settings): string { return s.device ? "BLE\nSEND" : "SET\nDEVICE"; }
 }
+
+// Preserve settings events for the supported Stream Deck 6.9 hosts.
+streamDeck.settings.useLegacySettingsBehavior = true;
 
 streamDeck.actions.registerAction(new PowerAction());
 streamDeck.actions.registerAction(new BrightnessAction());
