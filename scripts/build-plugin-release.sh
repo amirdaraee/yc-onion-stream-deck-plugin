@@ -23,8 +23,8 @@ lipo -create \
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleName YC Onion Controller" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.amirdaraee.yc-onion.controller" "$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.3.0" "$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion 130" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.3.1" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion 131" "$APP/Contents/Info.plist"
 
 if [[ "$SIGNING_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$APP" >/dev/null

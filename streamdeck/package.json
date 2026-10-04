@@ -1,6 +1,6 @@
 {
   "name": "yc-onion-stream-deck-plugin",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "description": "Stream Deck plugin for controlling YC Onion Bluetooth devices.",
   "license": "MIT",

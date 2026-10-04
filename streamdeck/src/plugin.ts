@@ -18,6 +18,7 @@ type Settings = {
   brightness?: number;
   kelvin?: number;
   hue?: number;
+  cycleIndex?: number;
   saturation?: number;
   family?: string;
   effectId?: number;
@@ -36,7 +37,7 @@ const controllerRuntime = join(homedir(), "Library", "Application Support", "YCO
 const controllerApp = join(controllerRuntime, "YC Onion Controller.app");
 const controllerBinary = join(controllerApp, "Contents", "MacOS", "yc-onion");
 const controllerMarker = join(controllerRuntime, ".version");
-const controllerVersion = "1.3.0";
+const controllerVersion = "1.3.1";
 const windowsController = join(pluginRoot, "controllers", "windows", "yc-onion.ps1");
 
 let controllerPreparation: Promise<void> | undefined;
@@ -232,6 +233,61 @@ class ColorAction extends ControllerAction {
   title(s: Settings): string { return `H ${s.hue ?? 0}°`; }
 }
 
+const cycleColors = [
+  { name: "RED", hue: 0 },
+  { name: "ORANGE", hue: 30 },
+  { name: "YELLOW", hue: 60 },
+  { name: "GREEN", hue: 120 },
+  { name: "CYAN", hue: 180 },
+  { name: "BLUE", hue: 240 },
+  { name: "PURPLE", hue: 270 },
+  { name: "MAGENTA", hue: 300 }
+] as const;
+
+function lastCycleIndex(value: number | undefined): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value < cycleColors.length ? value : -1;
+}
+
+@action({ UUID: "com.amirdaraee.yc-onion.color-cycle" })
+class ColorCycleAction extends ControllerAction {
+  private readonly lastColors = new Map<string, number>();
+  private readonly pending = new Map<string, Promise<void>>();
+
+  arguments(s: Settings): string[] {
+    const next = (lastCycleIndex(s.cycleIndex) + 1) % cycleColors.length;
+    return ["hsi", String(cycleColors[next].hue), String(s.saturation ?? 100), String(s.brightness ?? 100), ...targetArgs(s)];
+  }
+
+  title(s: Settings): string {
+    const last = lastCycleIndex(s.cycleIndex);
+    return last < 0 ? "CYCLE" : cycleColors[last].name;
+  }
+
+  override async onKeyDown(ev: KeyDownEvent<Settings>): Promise<void> {
+    const id = ev.action.id;
+    const previous = this.pending.get(id) ?? Promise.resolve();
+    const run = previous.then(async () => {
+      const settings = ev.payload.settings;
+      const last = this.lastColors.get(id) ?? lastCycleIndex(settings.cycleIndex);
+      const next = (last + 1) % cycleColors.length;
+      await control(this.arguments({ ...settings, cycleIndex: last }));
+      this.lastColors.set(id, next);
+      await ev.action.setSettings({ ...settings, cycleIndex: next });
+      await ev.action.setTitle(cycleColors[next].name);
+      await ev.action.showOk();
+    }).catch(async error => {
+      streamDeck.logger.error(String(error));
+      await ev.action.showAlert();
+    });
+    this.pending.set(id, run);
+    try {
+      await run;
+    } finally {
+      if (this.pending.get(id) === run) this.pending.delete(id);
+    }
+  }
+}
+
 @action({ UUID: "com.amirdaraee.yc-onion.effect" })
 class EffectAction extends ControllerAction {
   arguments(s: Settings): string[] {
@@ -261,6 +317,7 @@ streamDeck.actions.registerAction(new PowerAction());
 streamDeck.actions.registerAction(new BrightnessAction());
 streamDeck.actions.registerAction(new CCTAction());
 streamDeck.actions.registerAction(new ColorAction());
+streamDeck.actions.registerAction(new ColorCycleAction());
 streamDeck.actions.registerAction(new EffectAction());
 streamDeck.actions.registerAction(new RawBLEAction());
 streamDeck.connect();
