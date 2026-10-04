@@ -31,13 +31,14 @@
 <body>
   <div class="row power"><label>Operation</label><select data-setting="operation"><option value="toggle">Toggle</option><option value="on">On</option><option value="off">Off</option></select></div>
   <div class="row brightness cct color effect"><label>Brightness</label><input data-setting="brightness" type="number" min="0" max="100" value="60"></div>
+  <div class="row color-cycle"><label>Brightness</label><input data-setting="brightness" type="number" min="0" max="100" value="100"></div>
   <div class="row cct"><label>Temperature</label><input data-setting="kelvin" type="number" min="3200" max="6200" step="100" value="4500"></div>
   <div class="row color"><label>Hue</label><input data-setting="hue" type="number" min="0" max="360" value="0"></div>
-  <div class="row color"><label>Saturation</label><input data-setting="saturation" type="number" min="0" max="100" value="100"></div>
+  <div class="row color color-cycle"><label>Saturation</label><input data-setting="saturation" type="number" min="0" max="100" value="100"></div>
   <div class="row effect"><label>Family</label><select data-setting="family"><option value="rgb">RGB</option><option value="cct">White/CCT</option><option value="police">Police</option></select></div>
   <div class="row effect"><label>Effect ID</label><input data-setting="effectId" type="number" min="1" max="6" value="1"></div>
   <div class="row effect"><label>Speed</label><input data-setting="speed" type="number" min="0" max="100" value="50"></div>
-  <div class="row power brightness cct color effect raw"><label>Device</label>
+  <div class="row power brightness cct color color-cycle effect raw"><label>Device</label>
     <div>
       <div class="device-picker">
         <select id="device-select" data-setting="device"></select>
@@ -50,6 +51,7 @@
   <div class="row raw"><label>Write UUID</label><input data-setting="write" type="text" value="FFE1"></div>
   <div class="row raw"><label>Packet</label><input data-setting="packet" type="text" placeholder="Hex bytes, e.g. AA F3 01 ... FF"></div>
   <p class="hint">The light must be physically powered on. Color: hue 0=red, 60=yellow, 120=green, 180=cyan, 240=blue, 300=magenta.</p>
+  <p class="hint color-cycle" style="display:none">Each press cycles through red, orange, yellow, green, cyan, blue, purple, and magenta.</p>
   <p class="hint warning raw" style="display:none">Advanced commands are protocol-recovered, not hardware-tested. A motion packet can move a slider or gimbal. Set the exact device name/UUID and test Stop before movement.</p>
   <p id="save-status"></p>
   <script>

@@ -62,6 +62,7 @@ devices accept only one active controller connection.
 | Brightness | Set output from 0–100% |
 | White / CCT | Set color temperature and brightness |
 | HSI Color | Set hue, saturation, and brightness |
+| Cycle Colors | Step through red, orange, yellow, green, cyan, blue, purple, and magenta with one button |
 | Effect | Run a built-in RGB, CCT, or police effect |
 | Advanced BLE Command | Send a service-specific packet to another product family |
 

@@ -5,6 +5,10 @@ the Stream Deck manifest adds a fourth build component.
 
 ## [Unreleased]
 
+### Added
+
+- Cycle Colors action that advances through the main colors on each press and remembers the last color per button.
+
 ## [1.3.0] - 2026-08-19
 
 ### Added
