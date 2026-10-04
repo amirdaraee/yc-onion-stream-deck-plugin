@@ -103,7 +103,7 @@
 
     function requestDevices() {
       if (!websocket || websocket.readyState !== WebSocket.OPEN) return;
-      websocket.send(JSON.stringify({ event: 'sendToPlugin', payload: { type: 'listDevices' } }));
+      websocket.send(JSON.stringify({ event: 'sendToPlugin', action, context, payload: { type: 'listDevices' } }));
     }
 
     function applyIncomingDevices(payload) {
@@ -136,7 +136,6 @@
       websocket = new WebSocket('ws://127.0.0.1:' + port);
       websocket.onopen = () => {
         websocket.send(JSON.stringify({ event, uuid }));
-        requestDevices();
       };
       websocket.onmessage = ev => {
         const message = JSON.parse(ev.data);
