@@ -1,13 +1,12 @@
 # Changelog
 
-All notable changes are documented here. Versions follow Semantic Versioning;
-the Stream Deck manifest adds a fourth build component.
+## 1.3.8
 
-## [Unreleased]
-
-### Added
-
-- Cycle Colors action that advances through the main colors on each press and remembers the last color per button.
+- Add the one-button color cycle action.
+- Filter Bluetooth discovery by YC Onion manufacturer ID or product name.
+- Launch the macOS controller with its Bluetooth privacy description.
+- Bound controller runtime and captured output.
+- Build the universal controller from SwiftPM's release binaries.
 
 ## [1.3.0] - 2026-08-19
 
@@ -30,5 +29,6 @@ the Stream Deck manifest adds a fourth build component.
 - Restored reliable macOS helper execution after Stream Deck installation and restart.
 - Corrected brightness, HSI color, and CCT command values.
 
-[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.8...HEAD
+[1.3.8]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.8
 [1.3.0]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.0

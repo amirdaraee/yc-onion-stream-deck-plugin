@@ -30,9 +30,9 @@ created from version tags after CI passes.
    `Unreleased`.
 4. Keep these three versions synchronized:
 
-   - `streamdeck/package.json`: `1.3.1`
-   - `manifest.json`: `1.3.1.0`
-   - `controllerVersion` in `streamdeck/src/plugin.ts`: `1.3.1`
+   - `streamdeck/package.json`: the release version, such as `1.3.8`
+   - `manifest.json`: the release version plus `.0`, such as `1.3.8.0`
+   - `controllerVersion` in `streamdeck/src/plugin.ts`: the release version
 
 5. Run:
 
@@ -57,8 +57,8 @@ created from version tags after CI passes.
 After the release commit is reviewed and CI passes:
 
 ```sh
-git tag -s v1.3.1 -m "Release 1.3.1"
-git push origin main v1.3.1
+git tag -s v1.3.8 -m "Release 1.3.8"
+git push origin main v1.3.8
 ```
 
 The release workflow verifies the version, imports the signing certificate,

@@ -1,12 +1,11 @@
 # YC Onion Control for Stream Deck
 
 An open-source Stream Deck plugin for controlling YC Onion Bluetooth devices on
-macOS and Windows—without the discontinued mobile apps.
+macOS and Windows.
 
-The plugin provides one-click installation, automatic Bluetooth discovery, and
-a per-action device picker. Energy Tube Mini lighting controls are verified on
-real hardware. Support for other YC Onion products is based on clean-room
-protocol analysis and needs community hardware testing.
+The plugin includes Bluetooth discovery and per-action device selection.
+Energy Tube Mini lighting controls have been tested on hardware. Other product
+protocols need hardware testing.
 
 ## Features
 
@@ -40,9 +39,8 @@ and validate its Stop command before testing movement.
 3. Drag an action from **YC Onion Control** onto a key.
 4. Select the target device in the action settings and press the key.
 
-No command-line tools or separate controller applications are required. On the
-first command, macOS may request Bluetooth access for **YC Onion Controller**.
-Approve it in System Settings > Privacy & Security > Bluetooth.
+On the first command, macOS may request Bluetooth access for **YC Onion
+Controller**. Approve it in System Settings > Privacy & Security > Bluetooth.
 
 The release also includes `SHA256SUMS` so the installer can be verified before
 opening it:
@@ -77,12 +75,8 @@ devices accept only one active controller connection.
   `%APPDATA%\Elgato\StreamDeck\logs` on Windows.
 - Toggle uses local state. If another controller changes the light, pressing
   Toggle twice restores synchronization.
-- The plugin restores its bundled controller permissions automatically after
-  installation and whenever Stream Deck restarts; no manual reconnection or
-  Bluetooth pairing is required after idle periods.
-- After sleep or long idle periods, the controller identifies the saved device
-  from a fresh Bluetooth advertisement instead of relying on macOS's potentially
-  stale peripheral cache.
+- After sleep or a long idle period, press a key to reconnect. Refresh the
+  device list if the connection fails.
 
 ## Development
 

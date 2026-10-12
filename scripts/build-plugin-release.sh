@@ -12,19 +12,23 @@ node "$ROOT/scripts/check-release-version.mjs"
 
 cd "$ROOT"
 swift build -c release --triple arm64-apple-macosx12.0
+ARM64_BINARY="$ROOT/.build/out/Products/Release/yc-onion"
+cp "$ARM64_BINARY" "$ROOT/.build/yc-onion-arm64"
 swift build -c release --triple x86_64-apple-macosx12.0
+X86_64_BINARY="$ROOT/.build/out/Products/Release/yc-onion"
+cp "$X86_64_BINARY" "$ROOT/.build/yc-onion-x86_64"
 
 rm -rf "$APP"
 mkdir -p "$MACOS"
 lipo -create \
-  "$ROOT/.build/arm64-apple-macosx/release/yc-onion" \
-  "$ROOT/.build/x86_64-apple-macosx/release/yc-onion" \
+  "$ROOT/.build/yc-onion-arm64" \
+  "$ROOT/.build/yc-onion-x86_64" \
   -output "$MACOS/yc-onion"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleName YC Onion Controller" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.amirdaraee.yc-onion.controller" "$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.3.1" "$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion 131" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.3.8" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion 138" "$APP/Contents/Info.plist"
 
 if [[ "$SIGNING_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$APP" >/dev/null

@@ -6,9 +6,9 @@ import streamDeck, {
   type SendToPluginEvent,
   type WillAppearEvent
 } from "@elgato/streamdeck";
-import { spawn } from "node:child_process";
-import { chmod, mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { chmod, mkdir, open as openFile, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { homedir, platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,10 +37,13 @@ const controllerRuntime = join(homedir(), "Library", "Application Support", "YCO
 const controllerApp = join(controllerRuntime, "YC Onion Controller.app");
 const controllerBinary = join(controllerApp, "Contents", "MacOS", "yc-onion");
 const controllerMarker = join(controllerRuntime, ".version");
-const controllerVersion = "1.3.1";
+const controllerVersion = "1.3.8";
 const windowsController = join(pluginRoot, "controllers", "windows", "yc-onion.ps1");
+const controllerTimeoutMs = 18_000;
+const maxCapturedOutput = 64 * 1024;
 
 let controllerPreparation: Promise<void> | undefined;
+let controllerBusy = false;
 
 type DeviceRecord = {
   name: string;
@@ -50,7 +53,57 @@ type DeviceRecord = {
   manufacturer: string;
 };
 
-async function runMacController(args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function captureChunk(current: string, chunk: string): string {
+  if (current.length >= maxCapturedOutput) return current;
+  return current + chunk.slice(0, maxCapturedOutput - current.length);
+}
+
+async function readCapturedFile(path: string): Promise<string> {
+  let handle: Awaited<ReturnType<typeof openFile>> | undefined;
+  try {
+    handle = await openFile(path, "r");
+    const buffer = Buffer.alloc(maxCapturedOutput);
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    return buffer.toString("utf8", 0, bytesRead);
+  } catch {
+    return "";
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+type ControllerResult = { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string };
+
+function executeController(command: string, args: string[], options: { windowsHide?: boolean } = {}): Promise<ControllerResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { ...options, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    let timedOut = false;
+    let forceKill: NodeJS.Timeout | undefined;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+      forceKill = setTimeout(() => child.kill("SIGKILL"), 1_000);
+    }, controllerTimeoutMs);
+    const finish = (error?: Error, code: number | null = null, signal: NodeJS.Signals | null = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (forceKill) clearTimeout(forceKill);
+      if (error) reject(error);
+      else if (timedOut) reject(new Error(`YC Onion controller timed out after ${controllerTimeoutMs / 1000} seconds.`));
+      else resolve({ code, signal, stdout, stderr });
+    };
+    child.stdout?.setEncoding("utf8").on("data", chunk => { stdout = captureChunk(stdout, chunk); });
+    child.stderr?.setEncoding("utf8").on("data", chunk => { stderr = captureChunk(stderr, chunk); });
+    child.once("error", error => finish(error));
+    child.once("close", (code, signal) => finish(undefined, code, signal));
+  });
+}
+
+async function runMacController(args: string[]): Promise<ControllerResult> {
   if (!controllerPreparation) {
     controllerPreparation = prepareMacController().catch(error => {
       controllerPreparation = undefined;
@@ -58,27 +111,30 @@ async function runMacController(args: string[]): Promise<{ code: number | null; 
     });
   }
   await controllerPreparation;
-  return new Promise((resolve, reject) => {
-    const request = randomUUID();
-    const stdoutPath = join(tmpdir(), `yc-onion-${request}.out`);
-    const stderrPath = join(tmpdir(), `yc-onion-${request}.err`);
-    const child = spawn("/usr/bin/open", [
+  // Launch via LaunchServices to apply the helper's Bluetooth privacy text.
+  const requestId = randomUUID();
+  const stdoutPath = join(tmpdir(), `yc-onion-${requestId}.out`);
+  const stderrPath = join(tmpdir(), `yc-onion-${requestId}.err`);
+  try {
+    const launcher = await executeController("/usr/bin/open", [
       "-n", "-W", "--stdout", stdoutPath, "--stderr", stderrPath,
       controllerApp, "--args", ...args
-    ], {
-      stdio: "ignore"
-    });
-    child.once("error", reject);
-    child.once("exit", async code => {
-      const [stdout, stderr] = await Promise.all([
-        readFile(stdoutPath, "utf8").catch(() => ""),
-        readFile(stderrPath, "utf8").catch(() => "")
-      ]);
-      await Promise.all([unlink(stdoutPath).catch(() => {}), unlink(stderrPath).catch(() => {})]);
-      if (stdout.trim()) streamDeck.logger.info(stdout.trim());
-      resolve({ code, stdout, stderr });
-    });
-  });
+    ]);
+    const [appStdout, appStderr] = await Promise.all([
+      readCapturedFile(stdoutPath),
+      readCapturedFile(stderrPath)
+    ]);
+    const result = {
+      code: launcher.code,
+      signal: launcher.signal,
+      stdout: captureChunk(launcher.stdout, appStdout),
+      stderr: captureChunk(launcher.stderr, appStderr)
+    };
+    if (result.stdout.trim()) streamDeck.logger.info(result.stdout.trim());
+    return result;
+  } finally {
+    await Promise.all([unlink(stdoutPath).catch(() => {}), unlink(stderrPath).catch(() => {})]);
+  }
 }
 
 async function prepareMacController(): Promise<void> {
@@ -88,9 +144,7 @@ async function prepareMacController(): Promise<void> {
     return;
   }
 
-  // Marketplace-protected plugin files are immutable. The signed helper is
-  // therefore shipped as an archive and expanded into writable application
-  // support rather than modified inside the installed plugin bundle.
+  // The plugin bundle is read-only; unpack the helper into Application Support.
   await rm(controllerRuntime, { recursive: true, force: true });
   await mkdir(controllerRuntime, { recursive: true });
   await new Promise<void>((resolve, reject) => {
@@ -104,31 +158,37 @@ async function prepareMacController(): Promise<void> {
   await writeFile(controllerMarker, `${controllerVersion}\n`, "utf8");
 }
 
-function runController(args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function runController(args: string[]): Promise<ControllerResult> {
   if (platform() === "darwin") return runMacController(args);
   return new Promise((resolve, reject) => {
     if (platform() === "win32") {
-      const child = spawn("powershell.exe", [
+      executeController("powershell.exe", [
         "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
         "-File", windowsController, ...args
-      ], { windowsHide: true });
-      let stdout = "";
-      let stderr = "";
-      child.stdout?.setEncoding("utf8").on("data", chunk => { stdout += chunk; });
-      child.stderr?.setEncoding("utf8").on("data", chunk => { stderr += chunk; });
-      child.once("error", reject);
-      child.once("exit", code => resolve({ code, stdout, stderr }));
+      ], { windowsHide: true }).then(resolve, reject);
       return;
     }
     reject(new Error(`Unsupported Stream Deck host: ${platform()}`));
   });
 }
 
-async function control(args: string[]): Promise<void> {
-  const result = await runController(args);
-  if ((result.code ?? 1) !== 0 || result.stderr.trim()) {
-    throw new Error(result.stderr.trim() || `Controller launcher exited with ${result.code}`);
+async function runExclusiveController(args: string[]): Promise<ControllerResult | undefined> {
+  if (controllerBusy) return undefined;
+  controllerBusy = true;
+  try {
+    const result = await runController(args);
+    if ((result.code ?? 1) !== 0 || result.stderr.trim()) {
+      const exit = result.code === null ? `signal ${result.signal ?? "unknown"}` : `code ${result.code}`;
+      throw new Error(result.stderr.trim() || `Controller launcher exited with ${exit}`);
+    }
+    return result;
+  } finally {
+    controllerBusy = false;
   }
+}
+
+async function control(args: string[]): Promise<boolean> {
+  return (await runExclusiveController(args)) !== undefined;
 }
 
 function parseDevices(stdout: string): DeviceRecord[] {
@@ -166,9 +226,16 @@ abstract class ControllerAction extends SingletonAction<Settings> {
   abstract title(settings: Settings): string;
 
   override async onKeyDown(ev: KeyDownEvent<Settings>): Promise<void> {
+    const settings = ev.payload.settings;
+    await ev.action.setTitle("...");
     try {
-      await control(this.arguments(ev.payload.settings));
+      const started = await control(this.arguments(settings));
+      if (!started) {
+        await ev.action.setTitle(this.title(settings));
+        return;
+      }
       await ev.action.showOk();
+      await ev.action.setTitle(this.title(settings));
     } catch (error) {
       streamDeck.logger.error(String(error));
       await ev.action.setTitle("ERROR");
@@ -192,7 +259,14 @@ abstract class ControllerAction extends SingletonAction<Settings> {
     const message = ev.payload;
     if (message.type !== "listDevices") return;
     try {
-      const result = await runController(["devices"]);
+      const result = await runExclusiveController(["devices"]);
+      if (!result) {
+        await streamDeck.ui.sendToPropertyInspector({
+          type: "devices",
+          error: "A YC Onion command is in progress. Try again in a moment."
+        });
+        return;
+      }
       const devices = parseDevices(result.stdout);
       await streamDeck.ui.sendToPropertyInspector({
         type: "devices",
@@ -251,7 +325,6 @@ function lastCycleIndex(value: number | undefined): number {
 @action({ UUID: "com.amirdaraee.yc-onion.color-cycle" })
 class ColorCycleAction extends ControllerAction {
   private readonly lastColors = new Map<string, number>();
-  private readonly pending = new Map<string, Promise<void>>();
 
   arguments(s: Settings): string[] {
     const next = (lastCycleIndex(s.cycleIndex) + 1) % cycleColors.length;
@@ -265,25 +338,24 @@ class ColorCycleAction extends ControllerAction {
 
   override async onKeyDown(ev: KeyDownEvent<Settings>): Promise<void> {
     const id = ev.action.id;
-    const previous = this.pending.get(id) ?? Promise.resolve();
-    const run = previous.then(async () => {
-      const settings = ev.payload.settings;
-      const last = this.lastColors.get(id) ?? lastCycleIndex(settings.cycleIndex);
-      const next = (last + 1) % cycleColors.length;
-      await control(this.arguments({ ...settings, cycleIndex: last }));
+    const settings = ev.payload.settings;
+    const last = this.lastColors.get(id) ?? lastCycleIndex(settings.cycleIndex);
+    const next = (last + 1) % cycleColors.length;
+    await ev.action.setTitle("...");
+    try {
+      const started = await control(this.arguments({ ...settings, cycleIndex: last }));
+      if (!started) {
+        await ev.action.setTitle(this.title(settings));
+        return;
+      }
       this.lastColors.set(id, next);
       await ev.action.setSettings({ ...settings, cycleIndex: next });
       await ev.action.setTitle(cycleColors[next].name);
       await ev.action.showOk();
-    }).catch(async error => {
+    } catch (error) {
       streamDeck.logger.error(String(error));
+      await ev.action.setTitle("ERROR");
       await ev.action.showAlert();
-    });
-    this.pending.set(id, run);
-    try {
-      await run;
-    } finally {
-      if (this.pending.get(id) === run) this.pending.delete(id);
     }
   }
 }
