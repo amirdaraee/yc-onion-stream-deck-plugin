@@ -65,6 +65,7 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
     private var pendingInspections = 0
     private var timeout: DispatchWorkItem?
     private var scanStop: DispatchWorkItem?
+    private var cachedPeripheralFallback: DispatchWorkItem?
     private var completion: ((Result<[DiscoveredDevice], Error>) -> Void)?
 
     init(mode: Mode, preferredID: UUID? = nil, preferredSerial: Data? = nil, nameFilter: String? = nil) {
@@ -93,12 +94,8 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             return
         }
 
-        // A cached CoreBluetooth peripheral can remain retrievable after the
-        // device has slept or changed its radio state, yet hang when connected.
-        // When a stable advertised serial is available, scan first and connect
-        // to the fresh advertisement instead of trusting that stale cache.
-        if preferredSerial == nil,
-           let preferredID,
+        // Reuse a cached peripheral first; retry with a fresh scan if it stalls.
+        if let preferredID,
            let known = central.retrievePeripherals(withIdentifiers: [preferredID]).first,
            isWriteMode {
             selected = DiscoveredDevice(
@@ -111,6 +108,13 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             )
             known.delegate = self
             central.connect(known)
+            // Do not let a stale cached connection hold the action until timeout.
+            let fallback = DispatchWorkItem { [weak self] in
+                guard let self, self.completion != nil, self.selected?.peripheral.identifier == preferredID else { return }
+                self.recoverConnection(or: ControllerError.timedOut)
+            }
+            cachedPeripheralFallback = fallback
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: fallback)
             return
         }
 
@@ -139,12 +143,20 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
         let hasService = services.contains(CBUUID(string: YCProtocol.serviceUUID))
         let lowerName = name.lowercased()
         let isYCManufacturer = manufacturer?.prefix(2) == Data([0x04, 0x05])
-        let looksLikeYC = hasService || isYCManufacturer || lowerName.contains("energy") || lowerName.contains("pudding") || lowerName.hasPrefix("et_")
+        let knownYCName = [
+            "yc onion", "yconion", "energy tube", "energytube", "pudding", "pizzc",
+            "lolly", "waffle", "toast light", "chocolate", "hot dog", "hotdog", "cheese",
+            "et_", "hd-v1", "hdii", "hg-zyb", "qkl-pro", "qkl-2d", "hdse", "chse-v1",
+            "rg_se", "ydc_b", "jdy", "ch-v1", "chpro-v1", "chmk-v1", "dji-v1", "yc-rs2",
+            "yuntai", "burger"
+        ].contains { lowerName.contains($0) }
+        // 0x1828 is generic; list only YC company IDs or known product names.
+        let looksLikeYC = isYCManufacturer || knownYCName
         let isListing: Bool
         if case .list = mode { isListing = true } else { isListing = false }
         let isRaw: Bool
         if case .rawWrite = mode { isRaw = true } else { isRaw = false }
-        guard isListing || looksLikeYC || (isRaw && matchesName(name)) || (nameFilter != nil && matchesName(name)) else { return }
+        guard (isListing ? looksLikeYC : looksLikeYC || (isRaw && matchesName(name)) || (nameFilter != nil && matchesName(name))) else { return }
 
         let serial = manufacturer.flatMap(YCProtocol.serial(fromManufacturerData:))
         let candidate = DiscoveredDevice(
@@ -219,6 +231,8 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        cachedPeripheralFallback?.cancel()
+        cachedPeripheralFallback = nil
         if case .inspect = mode {
             peripheral.discoverServices(nil)
         } else if case .rawWrite(let serviceUUID, _, _) = mode {
@@ -245,6 +259,7 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             finish(.failure(ControllerError.connectionFailed(error?.localizedDescription ?? "device disconnected")))
             return
         }
+        if let selected { central.cancelPeripheralConnection(selected.peripheral) }
         isFallbackScan = true
         selected = nil
         writeCharacteristic = nil
@@ -371,6 +386,7 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
         self.completion = nil
         timeout?.cancel()
         scanStop?.cancel()
+        cachedPeripheralFallback?.cancel()
         central?.stopScan()
         if let selected { central?.cancelPeripheralConnection(selected.peripheral) }
         completion(result)

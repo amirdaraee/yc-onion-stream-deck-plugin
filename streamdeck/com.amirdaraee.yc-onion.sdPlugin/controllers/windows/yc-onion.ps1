@@ -77,7 +77,10 @@ function Scan([int]$Seconds = 5) {
       break
     }
     $services = @($event.Advertisement.ServiceUuids | ForEach-Object { $_.ToString().ToLowerInvariant() })
-    $looksYC = $name -match '(?i)energy|pudding|^et_|yc|pizzc' -or ($manufacturer.Count -ge 2 -and $manufacturer[0] -eq 0x04 -and $manufacturer[1] -eq 0x05) -or $services -match '^0000(1828|ffe0)-'
+    $knownYCName = $name -match '(?i)yc\s*onion|yconion|energy\s*tube|energytube|pudding|pizzc|lolly|waffle|toast\s*light|chocolate|hot[\s_-]?dog|cheese|^et_|^hd-v1$|^hdii$|^hg-zyb$|^qkl-(pro|2d)$|^hdse$|^chse-v1$|^rg_se$|^ydc_b$|^jdy$|^ch-v1$|^chpro-v1$|^chmk-v1$|^dji-v1$|^yc-rs2$|^yuntai$|^burger$'
+    $hasYCManufacturer = $manufacturer.Count -ge 2 -and $manufacturer[0] -eq 0x04 -and $manufacturer[1] -eq 0x05
+    # Generic service UUIDs such as 0x1828 are not unique to YC Onion.
+    $looksYC = $knownYCName -or $hasYCManufacturer
     if ($looksYC) {
       $Event.MessageData[$event.BluetoothAddress.ToString('X12')] = [pscustomobject]@{ Name = $(if ($name) {$name} else {'YC Onion'}); Address = $event.BluetoothAddress; Rssi = $event.RawSignalStrengthInDBm; Manufacturer = $manufacturer; Services = $services }
     }
