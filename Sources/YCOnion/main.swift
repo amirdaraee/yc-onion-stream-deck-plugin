@@ -10,7 +10,7 @@ private struct Options {
     var serial: Data?
     var targetSerial: Data?
     var device: String?
-    var timeout: TimeInterval = 12
+    var timeout: TimeInterval = 24
     var service: String?
     var write: String?
     var positionals: [String] = []

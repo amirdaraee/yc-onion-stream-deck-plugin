@@ -37,9 +37,9 @@ const controllerRuntime = join(homedir(), "Library", "Application Support", "YCO
 const controllerApp = join(controllerRuntime, "YC Onion Controller.app");
 const controllerBinary = join(controllerApp, "Contents", "MacOS", "yc-onion");
 const controllerMarker = join(controllerRuntime, ".version");
-const controllerVersion = "1.3.8";
+const controllerVersion = "1.3.9";
 const windowsController = join(pluginRoot, "controllers", "windows", "yc-onion.ps1");
-const controllerTimeoutMs = 18_000;
+const controllerTimeoutMs = 32_000;
 const maxCapturedOutput = 64 * 1024;
 
 let controllerPreparation: Promise<void> | undefined;
