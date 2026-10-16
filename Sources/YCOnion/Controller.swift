@@ -111,13 +111,14 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             )
             known.delegate = self
             central.connect(known)
-            // Do not let a stale cached connection hold the action until timeout.
+            // CoreBluetooth can take several seconds to complete a cached
+            // connection. Give it time before retrying from an advertisement.
             let fallback = DispatchWorkItem { [weak self] in
                 guard let self, self.completion != nil, self.selected?.peripheral.identifier == preferredID else { return }
                 self.recoverConnection(or: ControllerError.timedOut)
             }
             cachedPeripheralFallback = fallback
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: fallback)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: fallback)
             return
         }
 
@@ -198,7 +199,10 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
            device.serial == savedSerial {
             return true
         }
-        if let preferredID, !isFallbackScan, device.peripheral.identifier == preferredID { return true }
+        // The CoreBluetooth identifier is the user's selected device. Keep
+        // honoring it during fallback scans even if its advertised name or
+        // manufacturer serial has changed between firmware/ad versions.
+        if let preferredID, device.peripheral.identifier == preferredID { return true }
         if let preferredSerial, device.serial == preferredSerial { return true }
         if let nameFilter { return device.name.lowercased().contains(nameFilter) }
         if preferredID != nil { return false }
