@@ -56,12 +56,15 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
     private let preferredSerial: Data?
     private let nameFilter: String?
     private var isFallbackScan = false
+    private var scanAttempts = 0
     private var central: CBCentralManager!
     private var devices: [UUID: DiscoveredDevice] = [:]
     private var selected: DiscoveredDevice?
     private var writeCharacteristic: CBCharacteristic?
     private var targetWriteUUID = CBUUID(string: YCProtocol.writeUUID)
     private var pendingPackets: [Data] = []
+    private var isWritingWithoutResponse = false
+    private var writeCompletionWork: DispatchWorkItem?
     private var pendingInspections = 0
     private var timeout: DispatchWorkItem?
     private var scanStop: DispatchWorkItem?
@@ -108,13 +111,14 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             )
             known.delegate = self
             central.connect(known)
-            // Do not let a stale cached connection hold the action until timeout.
+            // CoreBluetooth can take several seconds to complete a cached
+            // connection. Give it time before retrying from an advertisement.
             let fallback = DispatchWorkItem { [weak self] in
                 guard let self, self.completion != nil, self.selected?.peripheral.identifier == preferredID else { return }
                 self.recoverConnection(or: ControllerError.timedOut)
             }
             cachedPeripheralFallback = fallback
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: fallback)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: fallback)
             return
         }
 
@@ -122,12 +126,15 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
     }
 
     private func startScanning() {
+        scanAttempts += 1
         central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
         let scanStop = DispatchWorkItem { [weak self] in
             self?.stopScanning()
         }
         self.scanStop = scanStop
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: scanStop)
+        // The vendor app scans for 10 seconds. Two shorter passes let us
+        // catch intermittent advertisements while still retrying promptly.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: scanStop)
     }
 
     func centralManager(
@@ -192,7 +199,10 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
            device.serial == savedSerial {
             return true
         }
-        if let preferredID, !isFallbackScan, device.peripheral.identifier == preferredID { return true }
+        // The CoreBluetooth identifier is the user's selected device. Keep
+        // honoring it during fallback scans even if its advertised name or
+        // manufacturer serial has changed between firmware/ad versions.
+        if let preferredID, device.peripheral.identifier == preferredID { return true }
         if let preferredSerial, device.serial == preferredSerial { return true }
         if let nameFilter { return device.name.lowercased().contains(nameFilter) }
         if preferredID != nil { return false }
@@ -218,6 +228,10 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             return
         }
         guard let candidate = sortedDevices().first(where: matches) else {
+            if scanAttempts < 2 {
+                startScanning()
+                return
+            }
             finish(.failure(ControllerError.noDevice))
             return
         }
@@ -341,12 +355,8 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
                 return
             }
             let type: CBCharacteristicWriteType = characteristic.properties.contains(.write) ? .withResponse : .withoutResponse
+            isWritingWithoutResponse = type == .withoutResponse
             writeNext(to: peripheral, characteristic: characteristic, type: type)
-            if type == .withoutResponse {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                    self?.finish(.success(self?.selected.map { [$0] } ?? []))
-                }
-            }
         } catch {
             finish(.failure(error))
         }
@@ -366,15 +376,32 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
         }
     }
 
+    func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
+        guard isWritingWithoutResponse, let characteristic = writeCharacteristic else { return }
+        writeNext(to: peripheral, characteristic: characteristic, type: .withoutResponse)
+    }
+
     private func writeNext(to peripheral: CBPeripheral, characteristic: CBCharacteristic, type: CBCharacteristicWriteType) {
-        guard !pendingPackets.isEmpty else { return }
-        let packet = pendingPackets.removeFirst()
-        peripheral.writeValue(packet, for: characteristic, type: type)
-        if type == .withoutResponse, !pendingPackets.isEmpty {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                self?.writeNext(to: peripheral, characteristic: characteristic, type: type)
+        if type == .withoutResponse {
+            // CoreBluetooth exposes backpressure for unacknowledged writes.
+            // Honor it instead of guessing a fixed delay between packets.
+            while peripheral.canSendWriteWithoutResponse, !pendingPackets.isEmpty {
+                peripheral.writeValue(pendingPackets.removeFirst(), for: characteristic, type: type)
             }
+            guard pendingPackets.isEmpty else { return }
+            isWritingWithoutResponse = false
+            let completion = DispatchWorkItem { [weak self] in
+                guard let self, self.completion != nil else { return }
+                self.finish(.success(self.selected.map { [$0] } ?? []))
+            }
+            writeCompletionWork?.cancel()
+            writeCompletionWork = completion
+            // Let CoreBluetooth flush its transmit queue before disconnecting.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: completion)
+            return
         }
+        guard !pendingPackets.isEmpty else { return }
+        peripheral.writeValue(pendingPackets.removeFirst(), for: characteristic, type: type)
     }
 
     private func sortedDevices() -> [DiscoveredDevice] {
@@ -387,6 +414,7 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
         timeout?.cancel()
         scanStop?.cancel()
         cachedPeripheralFallback?.cancel()
+        writeCompletionWork?.cancel()
         central?.stopScan()
         if let selected { central?.cancelPeripheralConnection(selected.peripheral) }
         completion(result)

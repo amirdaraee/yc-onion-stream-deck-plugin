@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.10
+
+- Allow cached BLE connections five seconds to complete before retrying.
+- Keep the selected CoreBluetooth device ID authoritative during fallback scans.
+
+## 1.3.9
+
+- Extend Bluetooth discovery and retry intermittent advertisements.
+- Respect CoreBluetooth write backpressure and allow unacknowledged writes to drain before disconnecting.
+- Increase the controller timeout to cover a full discovery and connection attempt.
+
 ## 1.3.8
 
 - Add the one-button color cycle action.
@@ -29,6 +40,8 @@
 - Restored reliable macOS helper execution after Stream Deck installation and restart.
 - Corrected brightness, HSI color, and CCT command values.
 
-[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.8...HEAD
+[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.10...HEAD
+[1.3.10]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.10
+[1.3.9]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.9
 [1.3.8]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.8
 [1.3.0]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.0
