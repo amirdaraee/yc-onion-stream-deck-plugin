@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.14
+
+- Retry selected-device discovery across three scan windows before failing.
+
+## 1.3.13
+
+- Accept advertisements from the selected Bluetooth ID even when they omit YC Onion identifiers.
+- Preserve serial and manufacturer data across advertisements during a scan.
+
+## 1.3.12
+
+- Scan selected devices before connecting so commands use the current advertised serial.
+
 ## 1.3.11
 
 - Use the current advertised serial for actions pinned to a Bluetooth device ID.
@@ -44,7 +57,10 @@
 - Restored reliable macOS helper execution after Stream Deck installation and restart.
 - Corrected brightness, HSI color, and CCT command values.
 
-[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.11...HEAD
+[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.14...HEAD
+[1.3.14]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.14
+[1.3.13]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.13
+[1.3.12]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.12
 [1.3.11]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.11
 [1.3.10]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.10
 [1.3.9]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.9

@@ -98,7 +98,7 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
         }
 
         // Reuse a cached peripheral first; retry with a fresh scan if it stalls.
-        if let preferredID,
+        if let preferredID, preferredSerial != nil,
            let known = central.retrievePeripherals(withIdentifiers: [preferredID]).first,
            isWriteMode {
             selected = DiscoveredDevice(
@@ -163,7 +163,8 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
         if case .list = mode { isListing = true } else { isListing = false }
         let isRaw: Bool
         if case .rawWrite = mode { isRaw = true } else { isRaw = false }
-        guard (isListing ? looksLikeYC : looksLikeYC || (isRaw && matchesName(name)) || (nameFilter != nil && matchesName(name))) else { return }
+        let isSelectedPeripheral = preferredID == peripheral.identifier
+        guard isSelectedPeripheral || (isListing ? looksLikeYC : looksLikeYC || (isRaw && matchesName(name)) || (nameFilter != nil && matchesName(name))) else { return }
 
         let serial = manufacturer.flatMap(YCProtocol.serial(fromManufacturerData:))
         let candidate = DiscoveredDevice(
@@ -174,7 +175,16 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             serial: serial,
             advertisesService: hasService
         )
-        if candidate.rssi > (devices[peripheral.identifier]?.rssi ?? -999) {
+        if let existing = devices[peripheral.identifier] {
+            devices[peripheral.identifier] = DiscoveredDevice(
+                peripheral: candidate.peripheral,
+                name: candidate.name == "Unknown" ? existing.name : candidate.name,
+                rssi: max(candidate.rssi, existing.rssi),
+                manufacturerData: candidate.manufacturerData ?? existing.manufacturerData,
+                serial: candidate.serial ?? existing.serial,
+                advertisesService: candidate.advertisesService || existing.advertisesService
+            )
+        } else {
             devices[peripheral.identifier] = candidate
         }
 
@@ -228,7 +238,7 @@ final class YCController: NSObject, CBCentralManagerDelegate, CBPeripheralDelega
             return
         }
         guard let candidate = sortedDevices().first(where: matches) else {
-            if scanAttempts < 2 {
+            if scanAttempts < 3 {
                 startScanning()
                 return
             }
