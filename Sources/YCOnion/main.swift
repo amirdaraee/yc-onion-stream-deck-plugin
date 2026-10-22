@@ -10,7 +10,7 @@ private struct Options {
     var serial: Data?
     var targetSerial: Data?
     var device: String?
-    var timeout: TimeInterval = 12
+    var timeout: TimeInterval = 32
     var service: String?
     var write: String?
     var positionals: [String] = []
@@ -234,7 +234,7 @@ do {
     let controller = YCController(
         mode: .write(command: command, explicitSerial: options.serial),
         preferredID: requestedID,
-        preferredSerial: options.targetSerial ?? state.serialHex.flatMap { try? YCProtocol.parseSerial($0) },
+        preferredSerial: options.targetSerial ?? (requestedID == nil ? state.serialHex.flatMap { try? YCProtocol.parseSerial($0) } : nil),
         nameFilter: requestedID == nil ? options.device : state.name
     )
     activeController = controller
