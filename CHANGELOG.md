@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.11
+
+- Use the current advertised serial for actions pinned to a Bluetooth device ID.
+
 ## 1.3.10
 
 - Allow cached BLE connections five seconds to complete before retrying.
@@ -40,7 +44,8 @@
 - Restored reliable macOS helper execution after Stream Deck installation and restart.
 - Corrected brightness, HSI color, and CCT command values.
 
-[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.10...HEAD
+[Unreleased]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/compare/v1.3.11...HEAD
+[1.3.11]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.11
 [1.3.10]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.10
 [1.3.9]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.9
 [1.3.8]: https://github.com/amirdaraee/yc-onion-stream-deck-plugin/releases/tag/v1.3.8

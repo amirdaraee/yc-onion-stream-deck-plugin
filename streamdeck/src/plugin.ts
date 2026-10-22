@@ -37,7 +37,7 @@ const controllerRuntime = join(homedir(), "Library", "Application Support", "YCO
 const controllerApp = join(controllerRuntime, "YC Onion Controller.app");
 const controllerBinary = join(controllerApp, "Contents", "MacOS", "yc-onion");
 const controllerMarker = join(controllerRuntime, ".version");
-const controllerVersion = "1.3.10";
+const controllerVersion = "1.3.11";
 const windowsController = join(pluginRoot, "controllers", "windows", "yc-onion.ps1");
 const controllerTimeoutMs = 32_000;
 const maxCapturedOutput = 64 * 1024;
@@ -214,8 +214,10 @@ function targetArgs(settings: Settings): string[] {
   const args: string[] = [];
   if (settings.device) {
     args.push("--device", settings.device);
-  }
-  if (settings.serial) {
+  } else if (settings.serial) {
+    // Per-action selections pin a stable CoreBluetooth ID. Their stored
+    // serial can outlive a firmware advertisement change, so let the helper
+    // use the serial from the current advertisement for that selected ID.
     args.push("--serial", settings.serial);
   }
   return args;
